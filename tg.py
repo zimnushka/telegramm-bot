@@ -1,87 +1,196 @@
-# {'content_type': 'text',
-#  'id': 24, 'message_id': 24,
-#   'from_user': {'id': 722421615, 'is_bot': False, 'first_name': 'Зимнухов', 'username': 'KRD_KIRILL_ZIMNUKHOV', 'last_name': 'Кирилл', 'language_code': 'ru', 'can_join_groups': None, 'can_read_all_group_messages': None, 'supports_inline_queries': None},
-#    'date': 1617535696, 
-#    'chat': {'id': 722421615, 'type': 'private', 'title': None, 'username': 'KRD_KIRILL_ZIMNUKHOV', 'first_name': 'Зимнухов', 'last_name': 'Кирилл', 'photo': None, 'bio': None, 'description': None, 'invite_link': None, 'pinned_message': None, 'permissions': None, 'slow_mode_delay': None, 'sticker_set_name': None, 'can_set_sticker_set': None, 'linked_chat_id': None, 'location': None}, 
-#   'forward_from': None, 'forward_from_chat': None, 'forward_from_message_id': None, 'forward_signature': None, 'forward_sender_name': None, 'forward_date': None, 'reply_to_message': None, 'edit_date': None, 'media_group_id': None, 'author_signature': None, 'text': 'eweew', 'entities': None, 'caption_entities': None, 'audio': None, 'document': None, 'photo': None, 'sticker': None, 'video': None, 'video_note': None, 'voice': None, 'caption': None, 'contact': None, 'location': None, 'venue': None, 'animation': None, 'dice': None, 'new_chat_member': None, 'new_chat_members': None, 'left_chat_member': None, 'new_chat_title': None, 'new_chat_photo': None, 'delete_chat_photo': None, 'group_chat_created': None, 'supergroup_chat_created': None, 'channel_chat_created': None, 'migrate_to_chat_id': None, 'migrate_from_chat_id': None, 'pinned_message': None, 'invoice': None, 'successful_payment': None, 'connected_website': None, 'reply_markup': None, 'json': {'message_id': 24, 'from': {'id': 722421615, 'is_bot': False, 'first_name': 'Зимнухов', 'last_name': 'Кирилл', 'username': 'KRD_KIRILL_ZIMNUKHOV', 'language_code': 'ru'}, 'chat': {'id': 722421615, 'first_name': 'Зимнухов', 'last_name': 'Кирилл', 'username': 'KRD_KIRILL_ZIMNUKHOV', 'type': 'private'}, 'date': 1617535696, 'text': 'eweew'}}
 import sys
 sys.path.insert(0, 'C:/git/')
 
 import telebot
 import config
+import sqlite3
+import random
+import string
+import time
 
+db = sqlite3.connect('telegramDb.db', check_same_thread=False)
+sql = db.cursor()
+# sql.execute("INSERT INTO `users` (`user_id`, `status`) VALUES(?,?)", (user_id,bool))
 bot = telebot.TeleBot(config.tokenApi)
 
 users = []
-mailing = False
-usersLen = int(0)
+admins = []
+allUsers = []
 
-def addUser(id):
-	usersLen = int(len(users))
-	#проверяем наличие данного пользователя в массиве, если его нет то добавляем.
-	print(usersLen)
-	for i in range(usersLen):
-		if users[i] == id:
+def update():	
+	global users
+	global admins
+	allUsers = []
+	for value in sql.execute("SELECT user_id FROM `users`"):
+		allUsers.append(value[0])
+	db.commit()
+	users = []
+	for value in sql.execute("SELECT user_id FROM `users` WHERE `status` = ?", [1]):
+		users.append(value[0])
+	db.commit()
+	admins = []
+	for value in sql.execute("SELECT user_id FROM `users` WHERE `status` = ?", [2]):
+		admins.append(value[0])
+	db.commit()
+update()
+mail = False
+buy = False
+comm = False
+
+recordBuy = False
+recordComm = False
+letters = string.ascii_lowercase
+randStr=str()
+def addUser(id, message):
+	allusersLen = int(len(allUsers))
+	for i in range(allusersLen):
+		if allUsers[i] == id:
+			usersLen = int(len(users))
+			for e in range(usersLen):
+				if users[e] == id:
+					keyButtons(message,1,1)
+					return
+			sql.execute("UPDATE `users` SET `status` = 1 WHERE `user_id` = ?", [id])
+			db.commit()
+	adminsLen = int(len(admins))
+	for i in range(adminsLen):
+		if admins[i] == id:
+			keyButtons(message,1,2)
 			return
-	users.append(id)
-	print(users)
+	sql.execute("INSERT INTO `users` (`user_id`, `status`) VALUES(?,?)", (id,1))
+	db.commit()
+	keyButtons(message,1,1)
+	update()
 
-def buttons(message):
+def checkAdmin(id):
+	adminsLen = int(len(admins))
+	#проверяем наличие данного пользователя в массиве, если его нет то добавляем.
+	print(adminsLen)
+	for i in range(adminsLen):
+		if admins[i] == id:
+			print("admin")
+			return 1
+	return 0
+
+def buttons(message, messageid):
 	markup = telebot.types.InlineKeyboardMarkup()
-	markup.add(telebot.types.InlineKeyboardButton(text='Три', callback_data=3))
-	markup.add(telebot.types.InlineKeyboardButton(text='Четыре', callback_data=4))
-	markup.add(telebot.types.InlineKeyboardButton(text='Пять', callback_data=5))
-	# bot.send_message(message.chat.id, message.caption, reply_markup=markup)
-	bot.send_message(message.chat.id, 'Выберите действие', reply_markup=markup)
+	markup.add(telebot.types.InlineKeyboardButton(text='Заказать', callback_data=1))
+	markup.add(telebot.types.InlineKeyboardButton(text='Комментировать', callback_data=2))
+	bot.send_message(messageid, 'Выберите действие', reply_markup=markup)
 
-def adminButtons(message):
-    keyboard = telebot.types.ReplyKeyboardMarkup(True)
-    keyboard.row('Начать рассылку')
-    bot.send_message(message.chat.id, 'Для начала рассылки нажмите кноку "Начать рассылку"', reply_markup=keyboard)
+def mailing(message, messageid):
+	usersLen = int(len(users))
+	for i in range(usersLen):
+		bot.forward_message(users[i], message.chat.id, messageid)
+		buttons(message, users[i])
+		time.sleep(1)
+ 
+def checMail(message):
+	global mail
+	global messageid
+	if checkAdmin(message.from_user.id)==1:
+		if message.text=='Рассылка':
+			bot.send_message(message.chat.id, 'Отправте фото(желательно одно, если их много то сделайте предворительно коллаж) и напишите текст, а я его переправлю')
+			mail = True
+		elif mail==True:
+			if message.text == 'нет':
+				bot.send_message(message.chat.id, 'Подготовте сообщение, я вас всегда жду)')
+				mail = False
+			elif message.text == 'да':
+				global randStr
+				randStr = (''.join(random.choice(letters) for i in range(4)))
+				bot.send_message(message.chat.id, 'Пересылаю сообщение (' +randStr+' - это код сообщения в будущем вы сожете посмотреть комментарии и заказы по этой рассылке)')
+				mailing(message, messageid)
+				keyButtons(message,1,2)
+				mail = False
+			else:
+				keyButtons(message,2,2)
+				bot.forward_message(message.chat.id, message.chat.id, message.message_id)
+				messageid =  message.message_id
+		elif message.text=='Заказы':
+			bot.send_message(message.chat.id, 'Напишите код вашей рассылки')
+			buy = True
+
+
+
+def keyButtons(message,types,status):
+	if status == 1:
+		if types == 1:
+		   keyboard = telebot.types.ReplyKeyboardMarkup(True)
+		   keyboard.row('отменить подписку')
+		   bot.send_message(message.chat.id, 'Если вы отмените подписку, то не будет приходить рассылка', reply_markup=keyboard)
+		elif types == 2:
+			print('types 2')
+	elif status == 2:
+		if types == 1:
+		   keyboard = telebot.types.ReplyKeyboardMarkup(True)
+		   keyboard.row('Рассылка', 'Заказы', 'Комментарии')
+		   bot.send_message(message.chat.id, 'Выберите действие', reply_markup=keyboard)
+		elif types == 2:
+			keyboard = telebot.types.ReplyKeyboardMarkup(True)
+			keyboard.row('да', 'нет')
+			bot.send_message(message.chat.id, 'ВОТ ТАК БУДЕТ ВЫГЛЯДЕТЬ ВАШЕ СООБЩЕНИЕ, НАЧАТЬ РАССЫЛКУ?(нажмите на кнопку)', reply_markup=keyboard)
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-   addUser(message.from_user.id)
    bot.reply_to(message, f'Я бот носочки ОПТ. Приятно познакомиться, {message.from_user.first_name} {message.from_user.last_name}. Я буду сообщать вам о новинках, а вы сможете делать быстрые заказы!')
+   addUser(message.from_user.id, message)
 
 @bot.callback_query_handler(func=lambda call: True)
 def query_handler(call):
 
-   bot.answer_callback_query(callback_query_id=call.id, text='Спасибо за честный ответ!')
+   bot.answer_callback_query(callback_query_id=call.id, text='Спасибо за ответ!')
    answer = ''
-   if call.data == '3':
-      answer = '3!'
-   elif call.data == '4':
-      answer = '4!'
-   elif call.data == '5':
-      answer = '5!'
+   global recordBuy
+   global recordComm
+   if call.data == '1':
+      answer = 'Напишите текст, например: "30 гольф с звездой, 20 носков черного цвета"'
+      recordBuy = True
+   elif call.data == '2':
+      answer = 'Напишите текст, например: "Я бы хотел носки в полосочку, но серые"'
+      recordComm = True
 
    bot.send_message(call.message.chat.id, answer)
    bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id)
 
-
 @bot.message_handler(content_types=['text'])
 def get_text_messages(message):
-	global mailing
-	print(mailing)
-	usersLen = int(len(users))
-	if message.from_user.id == 722421615:
-		if message.text=='Начать рассылку':
-			bot.send_message(message.chat.id, 'Отправте фото(желательно одно, если их много то сделайте предворительно коллаж) и напишите текст, а я его перепралю')
-			mailing = True
-		elif mailing==True:
-			buttons(message)
-			mailing = False
-		else:
-			adminButtons(message)
-		
+	if checkAdmin(message.from_user.id)==1:
+		checMail(message)
+	else:
+		global recordBuy
+		global recordComm
+		if recordBuy == True:
+			firstName = str(message.from_user.first_name)
+			secondName = str(message.from_user.last_name)
+			name = str(firstName + ' ' + secondName)
+			description = message.text
+			sql.execute("INSERT INTO `notes` (`name`, `description`, `id_note`, `type`) VALUES(?,?,?,1)", (name, description,randStr))
+			db.commit()
+			recordBuy =False
+		elif recordComm == True:
+			firstName = str(message.from_user.first_name)
+			secondName = str(message.from_user.last_name)
+			name = str(firstName + ' ' + secondName)
+			description = message.text
+			sql.execute("INSERT INTO `notes` (`name`, `description`, `id_note`, `type`) VALUES(?,?,?,2)", (name, description,randStr))
+			db.commit()
+			recordComm = False
+
+@bot.message_handler(content_types=['audio'])
+def get_text_messages(message):
+	checMail(message)
+
+@bot.message_handler(content_types=['document'])
+def get_text_messages(message):
+	checMail(message)
+
+@bot.message_handler(content_types=['video'])
+def get_text_messages(message):
+	checMail(message)
 
 @bot.message_handler(content_types=['photo'])
 def get_text_messages(message):
-	usersLen = int(len(users))
-	if message.from_user.id == 722421615:
-		bot.forward_message(message.chat.id, message.chat.id, message.message_id)
-		buttons(message)
-		# bot.send_photo(message.chat.id, message.photo)
-		
+	checMail(message)
+	
 bot.polling(none_stop=True)
