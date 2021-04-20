@@ -48,7 +48,7 @@ def addUser(id, message):
 			usersLen = int(len(users))
 			for e in range(usersLen):
 				if users[e] == id:
-					keyButtons(message,1,1)
+					# keyButtons(message,1,1)
 					return
 			sql.execute("UPDATE `users` SET `status` = 1 WHERE `user_id` = ?", [id])
 			db.commit()
@@ -59,16 +59,13 @@ def addUser(id, message):
 			return
 	sql.execute("INSERT INTO `users` (`user_id`, `status`) VALUES(?,?)", (id,1))
 	db.commit()
-	keyButtons(message,1,1)
+	# keyButtons(message,1,1)
 	update()
 
 def checkAdmin(id):
 	adminsLen = int(len(admins))
-	#проверяем наличие данного пользователя в массиве, если его нет то добавляем.
-	print(adminsLen)
 	for i in range(adminsLen):
 		if admins[i] == id:
-			print("admin")
 			return 1
 	return 0
 
@@ -88,6 +85,7 @@ def mailing(message, messageid):
 def checMail(message):
 	global mail
 	global messageid
+	global buy
 	if checkAdmin(message.from_user.id)==1:
 		if message.text=='Рассылка':
 			bot.send_message(message.chat.id, 'Отправте фото(желательно одно, если их много то сделайте предворительно коллаж) и напишите текст, а я его переправлю')
@@ -95,6 +93,7 @@ def checMail(message):
 		elif mail==True:
 			if message.text == 'нет':
 				bot.send_message(message.chat.id, 'Подготовте сообщение, я вас всегда жду)')
+				keyButtons(message, 1,2)
 				mail = False
 			elif message.text == 'да':
 				global randStr
@@ -110,16 +109,39 @@ def checMail(message):
 		elif message.text=='Заказы':
 			bot.send_message(message.chat.id, 'Напишите код вашей рассылки')
 			buy = True
-
-
+		elif buy == True:
+			arr = []
+			for value in sql.execute("SELECT `description`, `name` FROM `notes` WHERE `type` = 1 AND `id_note` = ?", [message.text.lower()]):
+				arr.append(value)
+			db.commit()
+			text= ''
+			arrLen= int(len(arr))
+			for i in range(arrLen):
+				text = text + str(arr[i][1]) + ": " + str(arr[i][0])+ "\n"
+			bot.send_message(message.chat.id, text)
+			buy = False
+		elif message.text=='Комментарии':
+			bot.send_message(message.chat.id, 'Напишите код вашей рассылки')
+			comm = True
+		elif comm == True:
+			arr = []
+			for value in sql.execute("SELECT `description`, `name` FROM `notes` WHERE `type` = 2 AND `id_note` = ?", [message.text.lower()]):
+				arr.append(value)
+			db.commit()
+			text= ''
+			arrLen= int(len(arr))
+			for i in range(arrLen):
+				text = text + str(arr[i][1]) + ": " + str(arr[i][0])+ "\n"
+			bot.send_message(message.chat.id, text)
+			comm = False
 
 def keyButtons(message,types,status):
 	if status == 1:
-		if types == 1:
-		   keyboard = telebot.types.ReplyKeyboardMarkup(True)
-		   keyboard.row('отменить подписку')
-		   bot.send_message(message.chat.id, 'Если вы отмените подписку, то не будет приходить рассылка', reply_markup=keyboard)
-		elif types == 2:
+		# if types == 1:
+		#    keyboard = telebot.types.ReplyKeyboardMarkup(True)
+		#    keyboard.row('отменить подписку')
+		#    bot.send_message(message.chat.id, 'Если вы отмените подписку, то не будет приходить рассылка', reply_markup=keyboard)
+		if types == 2:
 			print('types 2')
 	elif status == 2:
 		if types == 1:
@@ -176,6 +198,11 @@ def get_text_messages(message):
 			sql.execute("INSERT INTO `notes` (`name`, `description`, `id_note`, `type`) VALUES(?,?,?,2)", (name, description,randStr))
 			db.commit()
 			recordComm = False
+		# elif message.text == 'отменить подписку':
+		# 	sql.execute("UPDATE `users` SET `status` = 0 WHERE `user_id` = ?", [message.from_user.id])
+		# 	db.commit()
+		# 	update()
+		# 	bot.reply_to(message, 'Буду вас ждать ;)')
 
 @bot.message_handler(content_types=['audio'])
 def get_text_messages(message):
